@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>منصة الانكسار والعدسات | مدارس الأنجال الأهلية</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Tajawal',system-ui,sans-serif;background:#f1f7f9}
+.card{background:#fff;border-radius:1rem;box-shadow:0 2px 10px rgba(15,60,90,.08)}
+.btn{display:inline-block;padding:.55rem 1.1rem;border-radius:.75rem;font-weight:700;transition:.15s;cursor:pointer}
+.btn-p{background:linear-gradient(90deg,#1d4ed8,#059669);color:#fff}
+.btn-p:hover{filter:brightness(1.1)}
+.btn-o{border:2px solid #1d4ed8;color:#1d4ed8;background:#fff}
+.btn-o:hover{background:#eff6ff}
+.tabb{padding:.45rem .9rem;border-radius:.6rem;font-weight:700;background:#e2e8f0;color:#334155;cursor:pointer;white-space:nowrap}
+.tabb.on{background:#1d4ed8;color:#fff}
+.opt{display:block;width:100%;text-align:right;padding:.8rem 1rem;border:2px solid #cbd5e1;border-radius:.8rem;background:#fff;font-weight:500;cursor:pointer;transition:.15s}
+.opt:hover:not(:disabled){border-color:#1d4ed8;background:#eff6ff}
+.opt.ok{border-color:#059669;background:#d1fae5}
+.opt.bad{border-color:#dc2626;background:#fee2e2}
+.opt:disabled{cursor:default}
+.kbd{direction:ltr;unicode-bidi:isolate;display:inline-block}
+table.t{width:100%;border-collapse:collapse}
+table.t th{background:#1d4ed8;color:#fff;padding:.4rem}
+table.t td{border:1px solid #e2e8f0;padding:.4rem;text-align:center}
+.ex{background:#ecfdf5;border-right:4px solid #059669;padding:.7rem 1rem;border-radius:.6rem}
+.key{background:#eff6ff;border-right:4px solid #1d4ed8;padding:.7rem 1rem;border-radius:.6rem}
+input[type=range]{width:100%}
+textarea{width:100%;border:2px solid #cbd5e1;border-radius:.6rem;padding:.5rem;min-height:90px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-5 py-2 rounded-full shadow-lg font-bold hidden z-50"></div>
+
+<script>
+/* ================== أدوات عامة ================== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const KEY='anjal_optics_v1';
+let DB={students:{},current:null};
+try{const r=localStorage.getItem(KEY);if(r)DB=JSON.parse(r)}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}};
+const S=()=>DB.students[DB.current];
+let view={name:'login'},quiz=null,timer=null;
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.remove('hidden');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.add('hidden'),2200)}
+function addPts(n,msg){S().points+=n;save();toast('+'+n+' نقطة'+(msg?' — '+msg:'')+' ⭐')}
+
+/* ============ روابط الفيديو (يمكن للمعلم استبدالها بروابط محددة) ============ */
+const yt=q=>'https://www.youtube.com/results?search_query='+encodeURIComponent(q);
+const PHET_BL={page:'https://phet.colorado.edu/ar/simulations/bending-light',embed:'https://phet.colorado.edu/sims/html/bending-light/latest/bending-light_ar.html',name:'انحناء الضوء (Bending Light)'};
+const PHET_GO={page:'https://phet.colorado.edu/ar/simulations/geometric-optics',embed:'https://phet.colorado.edu/sims/html/geometric-optics/latest/geometric-optics_ar.html',name:'البصريات الهندسية (Geometric Optics)'};
+
+/* ================== المهارات ================== */
+const MEDIA=[['فراغ',1.00],['هواء',1.0003],['ماء',1.33],['إيثانول',1.36],['زجاج عدسات',1.52],['كوارتز',1.54],['زجاج صواني',1.62],['ألماس',2.42]];
+const NTABLE='<table class="t my-3"><tr><th>الوسط</th><th>n</th></tr>'+MEDIA.map(m=>`<tr><td>${m[0]}</td><td>${m[1].toFixed(m[1]===1.0003?4:2)}</td></tr>`).join('')+'</table>';
+
+const SK=[
+{id:'s1',ic:'📐',title:'قانون سنل ومعامل الانكسار',
+ goals:['أعرّف الانكسار ومعامل انكسار الوسط.','أطبّق قانون سنل لإيجاد زاوية الانكسار.','أفسّر الانكسار بالنموذج الموجي (ثبات التردد وتغير السرعة والطول الموجي).'],
+ body:`<p><b>الانكسار:</b> انحراف مسار الضوء عند عبوره الحد الفاصل بين وسطين شفافين مختلفين في معامل الانكسار.</p>
+ <div class="key my-3"><p>معامل الانكسار: <span class="kbd">n = c / v</span> &nbsp; (c = 3×10⁸ m/s)، وهو بلا وحدة وقيمته ≥ 1.</p>
+ <p>قانون سنل: <span class="kbd">n₁ sin θ₁ = n₂ sin θ₂</span> (الزاويتان تُقاسان من العمود المقام).</p></div>
+ <ul class="list-disc pr-6 space-y-1"><li>من وسط أقل n إلى أكبر n: ينحرف الضوء <b>مقتربًا</b> من العمود (θ₂ &lt; θ₁).</li><li>من وسط أكبر n إلى أقل n: ينحرف <b>مبتعدًا</b> عن العمود (θ₂ &gt; θ₁).</li><li>النموذج الموجي: <b>التردد ثابت</b>، وتقل السرعة والطول الموجي في الوسط: <span class="kbd">λ = λ₀ / n</span>.</li></ul>
+ <h4 class="font-bold mt-4">جدول معاملات الانكسار (للضوء الأصفر)</h4>${NTABLE}
+ <div class="ex"><b>مثال:</b> ضوء من الهواء (n=1.00) إلى زجاج عدسات (n=1.52) بزاوية 30.0°:<br><span class="kbd">sin θ₂ = (1.00/1.52)·sin 30° = 0.329 ⇒ θ₂ = 19.2°</span></div>`,
+ videos:[['شرح قانون سنل ومعامل الانكسار',yt('شرح قانون سنل الانكسار فيزياء ثالث ثانوي')],['النموذج الموجي للانكسار',yt('النموذج الموجي في الانكسار معامل الانكسار شرح')]],
+ phet:PHET_BL,anim:'snell',
+ lab:['اختر الهواء ثم الماء، وغيّر زاوية السقوط وسجّل زاوية الانكسار.','تحقق أن n₁ sin θ₁ = n₂ sin θ₂ لكل قراءة.','كرّر مع الألماس وقارن مقدار الانحراف.'],
+ map:{c:'الانكسار',b:[['تعريفه',['انحراف الضوء بين وسطين','تغير السرعة']],['معامل الانكسار',['n = c/v','n ≥ 1']],['قانون سنل',['n₁sinθ₁ = n₂sinθ₂','الزوايا من العمود']],['النموذج الموجي',['التردد ثابت','λ تقل مع السرعة']],['اتجاه الانحراف',['n أكبر: يقترب','n أقل: يبتعد']]]}},
+{id:'s2',ic:'🔆',title:'الزاوية الحرجة والانعكاس الكلي الداخلي',
+ goals:['أحدد شروط الانعكاس الكلي الداخلي.','أحسب الزاوية الحرجة لحد فاصل.','أفسّر الألياف البصرية والسراب.'],
+ body:`<p><b>الزاوية الحرجة θc:</b> زاوية السقوط في الوسط الأكبر انكسارًا التي تكون عندها زاوية الانكسار 90°.</p>
+ <div class="key my-3"><p><span class="kbd">sin θc = n₂ / n₁</span> &nbsp;(n₁ &gt; n₂)</p></div>
+ <p><b>الانعكاس الكلي الداخلي</b> يحدث عند تحقق شرطين معًا:</p>
+ <ul class="list-disc pr-6 space-y-1"><li>انتقال الضوء من وسط معامل انكساره <b>أكبر</b> إلى وسط معامل انكساره <b>أقل</b>.</li><li>زاوية السقوط <b>أكبر</b> من الزاوية الحرجة.</li></ul>
+ <h4 class="font-bold mt-4">تطبيقات</h4>
+ <ul class="list-disc pr-6 space-y-1"><li><b>الألياف البصرية:</b> الضوء يصطدم بالسطح الداخلي بزاوية أكبر من الحرجة (n القلب &gt; n الغلاف) فلا يفقد شدته.</li><li><b>السراب:</b> يتغير معامل انكسار الهواء تدريجيًا بسبب تسخين الطريق فينحرف الضوء إلى أعلى.</li><li>رؤية انعكاس مقلوب لجسم تحت الماء عند الغوص.</li></ul>
+ <div class="ex"><b>مثال:</b> الزاوية الحرجة للماء إلى الهواء: <span class="kbd">sin θc = 1/1.33 ⇒ θc = 48.8°</span></div>`,
+ videos:[['الانعكاس الكلي الداخلي والزاوية الحرجة',yt('الانعكاس الكلي الداخلي الزاوية الحرجة شرح')],['الألياف البصرية والسراب',yt('الألياف البصرية السراب الانعكاس الكلي الداخلي')]],
+ phet:PHET_BL,anim:'snell',
+ lab:['اجعل الوسط الأول ماء والثاني هواء.','زد زاوية السقوط تدريجيًا حتى تختفي الحزمة المنكسرة.','سجّل الزاوية الحرجة وقارنها بالقيمة المحسوبة.'],
+ map:{c:'الانعكاس الكلي الداخلي',b:[['الشروط',['n₁ > n₂','θ > θc']],['الزاوية الحرجة',['sinθc = n₂/n₁','انكسار 90°']],['ماء → هواء',['θc = 48.8°']],['زجاج → هواء',['θc = 41.1°']],['تطبيقات',['ألياف بصرية','سراب','انعكاس تحت الماء']]]}},
+{id:'s3',ic:'🔍',title:'العدسات المحدبة وتكوين الصور',
+ goals:['أميّز العدسة المحدبة وأصف سلوك الأشعة.','أرسم مخطط الأشعة وأحدد صفات الصورة.','أحل مسائل معادلة العدسة والتكبير.'],
+ body:`<p>العدسة المحدبة <b>أسمك عند الوسط</b> وأرق عند الأطراف، وهي <b>مجمِّعة</b> للضوء (f موجبة).</p>
+ <div class="key my-3"><p>معادلة العدسة: <span class="kbd">1/f = 1/dᵢ + 1/d₀</span> &nbsp;⇒&nbsp; <span class="kbd">dᵢ = f d₀ / (d₀ − f)</span></p><p>التكبير: <span class="kbd">m = hᵢ/h₀ = − dᵢ/d₀</span></p></div>
+ <p><b>الأشعة الرئيسة:</b> (1) شعاع موازٍ للمحور الرئيس ينكسر مارًّا بالبؤرة. (2) شعاع مارّ بالبؤرة ينكسر موازيًا للمحور.</p>
+ <table class="t my-3"><tr><th>موضع الجسم d₀</th><th>موضع الصورة</th><th>صفات الصورة</th></tr>
+ <tr><td>d₀ &gt; 2f</td><td>f &lt; dᵢ &lt; 2f</td><td>حقيقية مقلوبة مصغرة</td></tr>
+ <tr><td>d₀ = 2f</td><td>dᵢ = 2f</td><td>حقيقية مقلوبة مساوية</td></tr>
+ <tr><td>f &lt; d₀ &lt; 2f</td><td>dᵢ &gt; 2f</td><td>حقيقية مقلوبة مكبرة</td></tr>
+ <tr><td>d₀ &lt; f</td><td>dᵢ سالبة</td><td>خيالية معتدلة مكبرة</td></tr></table>
+ <div class="ex"><b>مثال:</b> جسم على بعد 32.0 cm من عدسة f = 8.0 cm: <span class="kbd">dᵢ = (8)(32)/(32−8) = 10.7 cm</span>، وإذا كان h₀ = 3.0 cm فإن hᵢ = −1.0 cm (مقلوبة).</div>`,
+ videos:[['العدسة المحدبة ورسم الأشعة',yt('العدسات المحدبة تكوين الصور رسم الأشعة فيزياء')],['معادلة العدسة الرقيقة والتكبير',yt('معادلة العدسة الرقيقة التكبير مسائل')]],
+ phet:PHET_GO,anim:'lens-cx',
+ lab:['استخدم عدسة محدبة وحرّك الجسم بعيدًا عن 2f ثم عند 2f ثم بين f و2f.','سجّل صفات الصورة وقارنها بالجدول.','اجعل الجسم داخل البؤرة وسجّل ما تلاحظ.'],
+ map:{c:'العدسة المحدبة',b:[['الخصائص',['مجمِّعة','أسمك عند الوسط','f موجبة']],['الأشعة',['موازٍ ⇒ البؤرة','بؤرة ⇒ موازٍ']],['المعادلات',['1/f = 1/dᵢ + 1/d₀','m = −dᵢ/d₀']],['الصورة الحقيقية',['d₀ > f','مقلوبة']],['الصورة الخيالية',['d₀ < f','معتدلة مكبرة']]]}},
+{id:'s4',ic:'🔭',title:'العدسات المقعرة',
+ goals:['أصف سلوك الأشعة في العدسة المقعرة.','أطبق إشارات f و dᵢ في المسائل.','أفسّر لماذا لا تكوّن صورة حقيقية.'],
+ body:`<p>العدسة المقعرة <b>أرق عند الوسط</b> وأسمك عند الأطراف، وهي <b>مفرِّقة</b> للضوء.</p>
+ <div class="key my-3"><p>نستخدم المعادلة نفسها مع <b>f سالبة</b>: <span class="kbd">1/f = 1/dᵢ + 1/d₀</span></p></div>
+ <ul class="list-disc pr-6 space-y-1"><li>تُنتج دائمًا صورة <b>خيالية معتدلة مصغرة</b> (dᵢ سالبة، 0 &lt; m &lt; 1).</li><li>الأشعة المنكسرة متباعدة لا تلتقي، فالصورة تتكون من امتداداتها الخلفية.</li><li>موضع الصورة في جانب الجسم نفسه.</li></ul>
+ <div class="ex"><b>مثال:</b> f = −20 cm، d₀ = 30 cm: <span class="kbd">dᵢ = (−20)(30)/(30+20) = −12 cm</span>، m = +0.40.</div>`,
+ videos:[['العدسة المقعرة وتكوين الصور',yt('العدسات المقعرة الصور الخيالية شرح فيزياء')],['إشارات البعد البؤري في العدسات',yt('إشارات البعد البؤري العدسة المقعرة المحدبة')]],
+ phet:PHET_GO,anim:'lens-cv',
+ lab:['بدّل نوع العدسة إلى مقعرة من الإعدادات.','حرّك الجسم وسجّل موضع الصورة وحجمها.','هل تتغير صفات الصورة؟ فسّر.'],
+ map:{c:'العدسة المقعرة',b:[['الخصائص',['مفرِّقة','أرق عند الوسط','f سالبة']],['الصورة',['خيالية','معتدلة','مصغرة']],['الرياضيات',['dᵢ سالبة','0 < m < 1']],['السبب',['الأشعة المنكسرة لا تلتقي']]]}},
+{id:'s5',ic:'👁️',title:'تطبيقات العدسات والعيوب البصرية',
+ goals:['أصف كيف تكوّن العين الصور.','أميّز قصر النظر وطول النظر وعلاجهما.','أوضح عمل المنظار الفلكي والمنظار والمجهر والكاميرا.','أفسّر التفريق والزوغان.'],
+ body:`<ul class="list-disc pr-6 space-y-2">
+ <li><b>العين:</b> القرنية هي العنصر الأساسي لتجميع الضوء (فرق معاملي الانكسار كبير)، والعدسة تضبط التركيز بالتكيّف: ينقبض العضل فيقل البعد البؤري لرؤية القريب.</li>
+ <li><b>قصر النظر:</b> البعد البؤري للعين أقل؛ صورة البعيد تتكون <u>أمام</u> الشبكية ⇒ عدسة <b>مقعرة</b>.</li>
+ <li><b>طول النظر:</b> البعد البؤري أكبر؛ صورة القريب تتكون <u>خلف</u> الشبكية ⇒ عدسة <b>محدبة</b>.</li>
+ <li><b>المنظار الفلكي الكاسر:</b> عدسة شيئية تكوّن صورة حقيقية مقلوبة عند بؤرتها، وعينية تكوّنها خيالية مكبرة (تبقى النهائية مقلوبة).</li>
+ <li><b>المنظار:</b> منشوران يستخدمان الانعكاس الكلي الداخلي لقلب الصورة وإطالة المسار.</li>
+ <li><b>الكاميرا العاكسة:</b> عدسة لالونية تكوّن صورة مقلوبة ومرآة ومنشور لتوجيهها لعين المصوّر.</li>
+ <li><b>المجهر:</b> شيئية تكوّن صورة حقيقية مقلوبة مكبرة، وعينية تكوّن خيالية مكبرة.</li>
+ <li><b>التفريق:</b> الضوء الأبيض يتحلل في المنشور لأن n للبنفسجي أكبر منه للأحمر، فينكسر أكثر (قوس المطر).</li>
+ <li><b>الزوغان الكروي:</b> بسبب اتساع سطح العدسة. <b>الزوغان اللوني:</b> اختلاف n باختلاف الطول الموجي؛ يُعالج بعدسة لالونية.</li></ul>`,
+ videos:[['العين وعيوب النظر',yt('قصر النظر طول النظر العين العدسات شرح')],['الآلات البصرية: المنظار والمجهر والكاميرا',yt('الآلات البصرية المجهر المنظار الفلكي الكاميرا شرح')]],
+ phet:PHET_GO,anim:'eye',
+ lab:['استخدم المحاكاة لتمثيل عين مصابة بقصر النظر.','أضف عدسة تصحيحية وحدد نوعها.','ثم مثّل منظارًا فلكيًا بعدستين محدبتين.'],
+ map:{c:'تطبيقات العدسات',b:[['العين',['القرنية تجمّع','التكيّف']],['العيوب',['قصر نظر: مقعرة','طول نظر: محدبة']],['الآلات',['تلسكوب','منظار','مجهر','كاميرا']],['الظواهر',['تفريق (قوس المطر)']],['العيوب في العدسات',['زوغان كروي','زوغان لوني']]]}}
+];
+
+/* ================== بنك الأسئلة ================== */
+const Q=(s,d,q,c,w,e)=>({s,d,q,o:[c,...w],e});
+const B={
+s1:[
+Q('s1',1,'يُعرَّف معامل انكسار الوسط n بأنه:','سرعة الضوء في الفراغ ÷ سرعة الضوء في الوسط (c/v)',['سرعة الضوء في الوسط ÷ سرعة الضوء في الفراغ','تردد الضوء ÷ طوله الموجي','زاوية السقوط ÷ زاوية الانكسار'],'n = c/v؛ وبما أن سرعة الضوء في أي وسط مادي أقل منها في الفراغ فإن n ≥ 1 دائمًا.'),
+Q('s1',1,'ينحرف الضوء عند انتقاله بين وسطين إذا كان معاملا انكسارهما:','مختلفين',['متساويين','كلاهما يساوي 1','كلاهما صفر'],'الانكسار ينتج عن اختلاف سرعة الضوء بين الوسطين، أي اختلاف معامل الانكسار.'),
+Q('s1',1,'ينص قانون سنل على أن:','n₁ sin θ₁ = n₂ sin θ₂',['n₁ sin θ₂ = n₂ sin θ₁','n₁ + sin θ₁ = n₂ + sin θ₂','n₁ cos θ₁ = n₂ cos θ₂'],'حاصل ضرب معامل انكسار الوسط الأول في جيب زاوية السقوط يساوي حاصل ضرب معامل انكسار الوسط الثاني في جيب زاوية الانكسار.'),
+Q('s1',1,'عند انتقال الضوء من الهواء إلى الزجاج فإنه ينحرف:','مقتربًا من العمود المقام',['مبتعدًا عن العمود المقام','دون انحراف','ينعكس كليًا'],'الانتقال من وسط أقل n (هواء) إلى أكبر n (زجاج) يجعل θ₂ < θ₁ فيقترب الشعاع من العمود.'),
+Q('s1',2,'عند انتقال الضوء من وسط إلى آخر، أي الكميات التالية لا تتغير؟','التردد',['السرعة','الطول الموجي','معامل الانكسار'],'التردد يتحدد بالمصدر فيبقى ثابتًا؛ أما السرعة والطول الموجي فيقلان في الوسط الأكبر n.'),
+Q('s1',2,'سرعة الضوء في الألماس (n = 2.42) تساوي تقريبًا:','1.24 × 10⁸ m/s',['7.26 × 10⁸ m/s','3.00 × 10⁸ m/s','2.42 × 10⁸ m/s'],'v = c/n = (3×10⁸)/2.42 = 1.24×10⁸ m/s.'),
+Q('s1',2,'سقط شعاع من الهواء (n=1.00) على زجاج عدسات (n=1.52) بزاوية 30.0°. زاوية الانكسار:','19.2°',['30.0°','49.5°','11.0°'],'sin θ₂ = (1.00/1.52)(sin 30°) = 0.329 ⇒ θ₂ = 19.2°؛ وهي أقل من 30° لأن n₂ > n₁.'),
+Q('s1',3,'ينتقل الضوء من الهواء إلى الإيثانول (n=1.36) بزاوية سقوط 37.0°. زاوية الانكسار:','26.3°',['54.9°','37.0°','18.2°'],'sin θ₂ = sin 37° / 1.36 = 0.6018/1.36 = 0.4425 ⇒ θ₂ = 26.3°.'),
+Q('s1',3,'ضوء طوله الموجي في الفراغ 600 nm يدخل زجاجًا معامل انكساره 1.5. طوله الموجي في الزجاج:','400 nm',['900 nm','600 nm','300 nm'],'λ = λ₀/n = 600/1.5 = 400 nm؛ يقل الطول الموجي ويبقى التردد ثابتًا.')
+],
+s2:[
+Q('s2',1,'يحدث الانعكاس الكلي الداخلي عندما ينتقل الضوء من وسط معامل انكساره:','أكبر إلى وسط أقل وبزاوية سقوط أكبر من الحرجة',['أقل إلى أكبر وبزاوية صغيرة','أكبر إلى أقل وبزاوية أقل من الحرجة','مساوٍ إلى مساوٍ بأي زاوية'],'الشرطان معًا: n₁ > n₂ وزاوية السقوط > θc.'),
+Q('s2',1,'الزاوية الحرجة هي زاوية السقوط التي تكون عندها زاوية الانكسار:','90°',['0°','45°','مساوية لزاوية السقوط'],'عند θc ينكسر الشعاع على امتداد الحد الفاصل أي بزاوية 90°.'),
+Q('s2',1,'أي التطبيقات التالية يعتمد على الانعكاس الكلي الداخلي؟','الألياف البصرية',['العدسة المكبرة','المرآة المستوية','الخلية الشمسية'],'ينتقل الضوء في الليف بانعكاسات كلية متتالية دون فقد.'),
+Q('s2',2,'العلاقة التي تعطي الزاوية الحرجة هي:','sin θc = n₂ / n₁ (حيث n₁ > n₂)',['sin θc = n₁ / n₂','cos θc = n₂ / n₁','tan θc = n₁ n₂'],'نضع θ₂ = 90° في قانون سنل: n₁ sin θc = n₂ (1).'),
+Q('s2',2,'الزاوية الحرجة للماء (n=1.33) عند انتقال الضوء منه إلى الهواء:','48.8°',['41.1°','90°','36.9°'],'sin θc = 1/1.33 = 0.752 ⇒ θc = 48.8°.'),
+Q('s2',2,'الزاوية الحرجة لزجاج العدسات (n=1.52) إلى الهواء:','41.1°',['48.8°','33.4°','60.0°'],'sin θc = 1/1.52 = 0.658 ⇒ θc = 41.1°.'),
+Q('s2',3,'الزاوية الحرجة للألماس (n=2.42) إلى الهواء:','24.4°',['41.1°','65.6°','48.8°'],'sin θc = 1/2.42 = 0.413 ⇒ θc = 24.4°؛ ولذلك يلمع الألماس لكثرة الانعكاسات الكلية داخله.'),
+Q('s2',2,'يظهر السراب الصحراوي بسبب:','تغير معامل انكسار الهواء تدريجيًا مع درجة حرارته فينحرف الضوء إلى أعلى',['انعكاس الضوء عن الرمل الساخن','تحلل الضوء الأبيض','حيود الضوء عن الغبار'],'الطريق الساخن يسخّن الهواء فيقل n قرب السطح وينحني الضوء تدريجيًا إلى أعلى.'),
+Q('s2',2,'ينتقل الضوء في الليف البصري دون فقد لأن:','زاوية سقوطه على السطح الداخلي أكبر من الحرجة (n القلب > n الغلاف)',['زاوية سقوطه أصغر من الحرجة','n الغلاف أكبر من n القلب','الليف يمتص الضوء ثم يعيد بثه'],'يتحقق شرطا الانعكاس الكلي الداخلي فلا ينفذ أي جزء من الضوء.'),
+Q('s2',3,'هل توجد زاوية حرجة لضوء ينتقل من الهواء إلى الماء؟','لا، لأنه ينتقل إلى وسط معامل انكساره أكبر',['نعم، 48.8°','نعم، 41.1°','لا، لأن الماء لا ينفذ الضوء'],'الزاوية الحرجة تتطلب أن يكون n₂ < n₁؛ وهنا n₂ > n₁ فلا يحدث انعكاس كلي.')
+],
+s3:[
+Q('s3',1,'العدسة المحدبة:','مجمِّعة للضوء وأسمك عند الوسط',['مفرِّقة للضوء وأسمك عند الوسط','مجمِّعة للضوء وأرق عند الوسط','مفرِّقة للضوء وأرق عند الوسط'],'العدسة المحدبة أسمك عند الوسط وتجمع الأشعة الموازية للمحور في البؤرة.'),
+Q('s3',1,'الشعاع الموازي للمحور الرئيس الساقط على عدسة محدبة ينكسر:','مارًّا بالبؤرة',['موازيًا للمحور الرئيس','عائدًا في الاتجاه نفسه','مارًّا بمركز التكور'],'هذه أول قاعدتين لرسم الأشعة: موازٍ ⇒ يمر بالبؤرة.'),
+Q('s3',1,'معادلة العدسة الرقيقة هي:','1/f = 1/dᵢ + 1/d₀',['f = dᵢ + d₀','1/f = dᵢ − d₀','f = dᵢ d₀'],'مقلوب البعد البؤري = مقلوب بعد الصورة + مقلوب بعد الجسم.'),
+Q('s3',2,'جسم على بعد أكبر من 2f أمام عدسة محدبة؛ صفات الصورة:','حقيقية مقلوبة مصغرة',['حقيقية مقلوبة مكبرة','خيالية معتدلة مكبرة','حقيقية معتدلة مصغرة'],'عندما d₀ > 2f تقع الصورة بين f و2f وتكون حقيقية مقلوبة مصغرة.'),
+Q('s3',2,'جسم عند 2f أمام عدسة محدبة؛ الصورة:','حقيقية مقلوبة مساوية للجسم عند 2f',['خيالية مكبرة','حقيقية مكبرة عند أبعد من 2f','لا تتكون صورة'],'عند d₀ = 2f يكون dᵢ = 2f و|m| = 1.'),
+Q('s3',2,'جسم بين f و2f أمام عدسة محدبة؛ الصورة:','حقيقية مقلوبة مكبرة',['حقيقية مقلوبة مصغرة','خيالية معتدلة مكبرة','خيالية مقلوبة مصغرة'],'f < d₀ < 2f تعطي صورة حقيقية مقلوبة مكبرة بعد 2f.'),
+Q('s3',2,'تتكون الصورة الخيالية في العدسة المحدبة عندما يكون الجسم:','بين العدسة والبؤرة',['على بعد أكبر من 2f','بين f و2f','عند 2f'],'عند d₀ < f تلتقي الامتدادات الخلفية للأشعة فتتكون صورة خيالية معتدلة مكبرة.'),
+Q('s3',3,'جسم على بعد 32.0 cm من عدسة محدبة بعدها البؤري 8.0 cm. بعد الصورة:','10.7 cm خلف العدسة',['6.4 cm','40 cm','−10.7 cm'],'dᵢ = f d₀/(d₀−f) = (8)(32)/(32−8) = 10.7 cm موجبة ⇒ صورة حقيقية.'),
+Q('s3',3,'في السؤال السابق إذا كان طول الجسم 3.0 cm فإن طول الصورة:','−1.0 cm (مقلوبة ومصغرة)',['+1.0 cm (معتدلة)','−9.0 cm','+9.0 cm'],'m = −dᵢ/d₀ = −10.7/32 = −0.33 ⇒ hᵢ = (−0.33)(3.0) = −1.0 cm.'),
+Q('s3',3,'تكونت صورة حقيقية مقلوبة طولها 1.8 cm على بعد 10.4 cm من عدسة محدبة بعدها البؤري 6.8 cm. بعد الجسم عن العدسة:','19.6 cm',['4.1 cm','17.2 cm','27.5 cm'],'d₀ = f dᵢ/(dᵢ−f) = (6.8)(10.4)/(10.4−6.8) = 19.6 cm، وطول الجسم = 1.8 × (19.6/10.4) = 3.4 cm.'),
+Q('s3',3,'وُضعت صحيفة على بعد 6.0 cm من عدسة محدبة بعدها البؤري 20.0 cm. بعد الصورة:','−8.6 cm (خيالية)',['+8.6 cm (حقيقية)','−30.0 cm','+4.6 cm'],'dᵢ = (20)(6)/(6−20) = −8.6 cm؛ الإشارة السالبة تعني صورة خيالية في جانب الجسم نفسه.')
+],
+s4:[
+Q('s4',1,'العدسة المقعرة:','مفرِّقة للضوء وأرق عند الوسط',['مجمِّعة للضوء وأسمك عند الوسط','مفرِّقة للضوء وأسمك عند الوسط','مجمِّعة للضوء وأرق عند الوسط'],'العدسة المقعرة أرق عند الوسط وتفرّق الأشعة المتوازية.'),
+Q('s4',1,'الصور المتكونة بالعدسة المقعرة دائمًا:','خيالية معتدلة مصغرة',['حقيقية مقلوبة مصغرة','خيالية مقلوبة مكبرة','حقيقية معتدلة مكبرة'],'الأشعة المنكسرة متباعدة، فتتكون الصورة من امتداداتها الخلفية دائمًا.'),
+Q('s4',1,'إشارة البعد البؤري للعدسة المقعرة:','سالبة',['موجبة','صفر','تعتمد على بعد الجسم'],'قاعدة الإشارات: + للمحدبة و − للمقعرة.'),
+Q('s4',2,'لا تتكون صورة حقيقية في العدسة المقعرة لأن:','الأشعة المنكسرة متباعدة ولا تلتقي فعليًا',['الأشعة المنكسرة تتجمع في البؤرة','العدسة تمتص الضوء','الأشعة تنعكس كليًا'],'التقاء الأشعة الفعلية شرط الصورة الحقيقية، وهو غير متحقق مع العدسة المفرِّقة.'),
+Q('s4',2,'إشارة dᵢ السالبة تعني أن الصورة:','خيالية في جانب الجسم نفسه',['حقيقية مقلوبة','حقيقية مكبرة','لا تتكون صورة'],'الصورة الخيالية تقع على جانب الجسم، وبعدها يُعطى بإشارة سالبة.'),
+Q('s4',2,'التكبير m في العدسة المقعرة يكون:','موجبًا وأقل من 1',['سالبًا وأكبر من 1','سالبًا وأقل من 1','موجبًا وأكبر من 1'],'الصورة معتدلة (m موجبة) ومصغرة (|m| < 1).'),
+Q('s4',3,'عدسة مقعرة بعدها البؤري 24 cm وُضع جسم أمامها على بعد 48 cm. بعد الصورة:','−16 cm',['+16 cm','−48 cm','+48 cm'],'f = −24: dᵢ = (−24)(48)/(48+24) = −16 cm.'),
+Q('s4',3,'عدسة مقعرة f = −20 cm، وجسم على بعد 30 cm. التكبير m يساوي:','+0.40',['−0.40','+2.5','+0.67'],'dᵢ = −12 cm ⇒ m = −dᵢ/d₀ = 12/30 = +0.40.'),
+Q('s4',3,'عدسة هوائية (من زجاجتي ساعة) موضوعة في ماء؛ عند سقوط أشعة موازية عليها تسلك سلوك:','عدسة مقعرة مفرِّقة',['عدسة محدبة مجمِّعة','لوح زجاجي مستوٍ','مرآة مقعرة'],'تُحدد سلوك العدسة بمعامل انكسارها بالنسبة للوسط المحيط؛ الهواء (n أقل من الماء) فتفرّق الأشعة رغم شكلها المحدب.')
+],
+s5:[
+Q('s5',1,'يُصحَّح قصر النظر باستخدام عدسة:','مقعرة',['محدبة','مستوية','أسطوانية'],'في قصر النظر تتكون الصورة أمام الشبكية، فتُستخدم عدسة مفرِّقة (مقعرة).'),
+Q('s5',1,'سبب طول النظر أن الصورة تتكون:','خلف الشبكية',['أمام الشبكية','على الشبكية تمامًا','داخل العدسة'],'البعد البؤري للعين أكبر من اللازم، فتُعالج بعدسة محدبة.'),
+Q('s5',1,'العنصر الأساسي لتجميع الضوء في العين هو:','القرنية',['العدسة','القزحية','العصب البصري'],'فرق معاملي انكسار الهواء والقرنية كبير؛ أما العدسة فتضبط التركيز.'),
+Q('s5',2,'العدسة العينية في المنظار الفلكي الكاسر تكوّن صورة:','خيالية معتدلة مكبرة بالنسبة للصورة الأولى',['حقيقية مقلوبة مصغرة','حقيقية معتدلة مكبرة','لا تكوّن صورة'],'تقع بؤرة الشيئية بين العينية وبؤرتها فتعمل العينية عمل عدسة مكبرة.'),
+Q('s5',2,'وظيفة المنشورين في المنظار هي:','قلب الصورة مرة أخرى بالانعكاس الكلي الداخلي وإطالة مسار الضوء',['تكبير الصورة 100 مرة','تحليل الضوء إلى ألوان','تصغير الصورة'],'الشيئية تقلب الصورة والمنشوران يعيدانها معتدلة.'),
+Q('s5',2,'سبب الزوغان اللوني هو:','اختلاف معامل الانكسار باختلاف الطول الموجي',['اتساع سطح العدسة','حرارة العدسة','انعكاس الضوء على السطح'],'تنكسر الأطوال الموجية بزوايا مختلفة فلا تتجمع في نقطة واحدة.'),
+Q('s5',2,'يُعالج الزوغان اللوني باستخدام:','عدسة لالونية (محدبة مع مقعرة)',['عدسة واحدة سميكة','مرآة مستوية','مرشح أسود'],'اختيار معاملي انكسار مناسبين يجعل تشتت إحداهما يلغي تشتت الأخرى.'),
+Q('s5',2,'في المجهر المركب تكوّن العدسة الشيئية صورة:','حقيقية مقلوبة مكبرة',['خيالية معتدلة مصغرة','حقيقية معتدلة مصغرة','خيالية مقلوبة مصغرة'],'يوضع الجسم بين البؤرة ومركز التكور، والصورة تصبح جسمًا للعينية.'),
+Q('s5',2,'يتحلل الضوء الأبيض في المنشور لأن اللون البنفسجي:','ينكسر أكثر من الأحمر لأن n له أكبر',['ينكسر أقل من الأحمر','لا ينكسر','سرعته أكبر من سرعة الأحمر في الزجاج'],'تردد البنفسجي أكبر فيتفاعل أكثر مع ذرات الزجاج وتقل سرعته.'),
+Q('s5',3,'عند النظر إلى جسم قريب تنقبض عضلات العين فتصبح العدسة:','أكثر سمكًا وأقل بعدًا بؤريًا',['أرق وأكبر بعدًا بؤريًا','أقل انكسارًا','تتحرك إلى الأمام'],'التكيّف: انقباض العضل يزيد انتفاخ العدسة فيقل البعد البؤري لتتركز صورة القريب على الشبكية.')
+],
+t:[
+Q('t',2,'سرعة الضوء في الألماس 1.24 × 10⁸ m/s. معامل انكسار الألماس:','2.42',['0.413','1.24','0.0422'],'n = c/v = (3.00×10⁸)/(1.24×10⁸) = 2.42.'),
+Q('t',2,'سقط ضوء من الهواء بزاوية 45° على وسط معامل انكساره √2. زاوية الانكسار:','30°',['45°','60°','90°'],'sin θ₂ = sin 45°/√2 = 0.707/1.414 = 0.5 ⇒ θ₂ = 30°.'),
+Q('t',3,'سقط ضوء من الهواء بزاوية 30.0° على مادة فانكسر بزاوية 20.0°. معامل انكسار المادة:','1.46',['0.68','1.50','1.73'],'n = sin 30°/sin 20° = 0.500/0.342 = 1.46.'),
+Q('t',2,'سرعة الضوء في الكلوروفورم (n = 1.51):','1.99 × 10⁸ m/s',['4.53 × 10⁸ m/s','1.51 × 10⁸ m/s','3.00 × 10⁸ m/s'],'v = c/n = 3.00×10⁸/1.51 = 1.99×10⁸ m/s.'),
+Q('t',3,'ضوء في الماء (1.33) يسقط بزاوية 57.5° على البولي إيثيلين (n=1.50). زاوية الانكسار:','48.4°',['57.5°','38.0°','67.8°'],'sin θ₂ = (1.33 × sin 57.5°)/1.50 = 0.748 ⇒ θ₂ = 48.4°.'),
+Q('t',2,'أي زاوية سقوط تسبب انعكاسًا كليًا داخليًا لضوء ينتقل من الماء إلى الهواء؟','50°',['30°','40°','45°'],'الزاوية الحرجة 48.8° ويحدث الانعكاس الكلي عند زاوية أكبر منها فقط، أي 50°.'),
+Q('t',2,'جسم على بعد 15 cm من عدسة محدبة بعدها البؤري 10 cm. بعد الصورة:','30 cm',['6 cm','25 cm','−30 cm'],'dᵢ = (10)(15)/(15−10) = 30 cm (حقيقية، m = −2).'),
+Q('t',3,'عملة قطرها 2.0 cm على بعد 3.4 cm من عدسة مكبرة بعدها البؤري 12.0 cm. موضع الصورة وقطرها:','−4.7 cm وقطرها 2.8 cm',['+4.7 cm وقطرها 2.8 cm','−4.7 cm وقطرها 1.4 cm','+12 cm وقطرها 2.0 cm'],'dᵢ = (12)(3.4)/(3.4−12) = −4.7 cm (خيالية)، m = 4.7/3.4 = 1.4 ⇒ القطر = 2.8 cm.'),
+Q('t',3,'أراد هاوٍ تكبير طابع 4.0 مرات والطابع على بعد 3.5 cm من العدسة. البعد البؤري المطلوب:','4.7 cm',['2.8 cm','14 cm','3.5 cm'],'صورة خيالية: m = −dᵢ/d₀ = 4 ⇒ dᵢ = −14 cm. 1/f = −1/14 + 1/3.5 = 3/14 ⇒ f = 4.7 cm.'),
+Q('t',2,'وُضع جسم أمام عدسة محدبة (f = 25 mm) فتكونت صورة مساوية له في الحجم. بعد الجسم:','50 mm',['25 mm','75 mm','12.5 mm'],'الصورة المساوية للجسم تتكون عندما d₀ = 2f = 50 mm.'),
+Q('t',2,'عدسة مقعرة f = −20 cm، وجسم على بعد 30 cm. بعد الصورة:','−12 cm',['+12 cm','−60 cm','+60 cm'],'dᵢ = (−20)(30)/(30+20) = −12 cm (خيالية).'),
+Q('t',1,'معامل انكسار الزجاج للضوء الأحمر مقارنة بالبنفسجي:','أقل',['أكبر','مساوٍ','صفر'],'n للبنفسجي أكبر ولذلك ينكسر أكثر في المنشور.'),
+Q('t',2,'ينتج قوس المطر عن:','انكسار الضوء وانعكاسه داخل القطرة ثم انكساره عند الخروج مع تفريق الألوان',['حيود الضوء حول القطرة فقط','انعكاس الضوء عن السحب فقط','استقطاب الضوء'],'تعمل قطرات الماء عمل منشورات صغيرة.'),
+Q('t',2,'في الألياف البصرية يجب أن يكون معامل انكسار القلب:','أكبر من معامل انكسار الغلاف',['أقل من معامل انكسار الغلاف','مساويًا له','صفرًا'],'شرط الانعكاس الكلي الداخلي: الانتقال من وسط أكبر n إلى أقل n.'),
+Q('t',3,'الزاوية الحرجة لضوء ينتقل من الكوارتز (n=1.54) إلى الهواء:','40.5°',['49.5°','36.0°','90°'],'sin θc = 1/1.54 = 0.649 ⇒ θc = 40.5°.')
+]};
+for(const k in B)B[k].forEach((q,i)=>q.id=k+i);
+const PRE=[
+Q('p',1,'معامل انكسار وسط يساوي:','سرعة الضوء في الفراغ ÷ سرعته في الوسط',['سرعة الضوء في الوسط ÷ سرعته في الفراغ','تردد الضوء ÷ سرعته','زاوية الانكسار فقط'],'n = c/v.'),
+Q('p',1,'قانون سنل:','n₁ sin θ₁ = n₂ sin θ₂',['n₁ sin θ₂ = n₂ sin θ₁','n₁ + n₂ = sin θ','n₁ θ₁ = n₂ θ₂'],'هذا هو نص قانون سنل.'),
+Q('p',1,'من الهواء إلى الزجاج ينحرف الضوء:','نحو العمود المقام',['بعيدًا عن العمود','لا ينحرف','ينعكس كليًا'],'n الزجاج أكبر.'),
+Q('p',2,'ضوء من الهواء إلى الماء (1.33) بزاوية 30°. زاوية الانكسار:','22.1°',['30°','41.7°','15°'],'sin θ₂ = 0.5/1.33 ⇒ 22.1°.'),
+Q('p',2,'الانعكاس الكلي الداخلي يحتاج إلى:','n₁ > n₂ وزاوية سقوط أكبر من الحرجة',['n₁ < n₂ وزاوية صغيرة','n₁ = n₂','أي زاوية سقوط'],'الشرطان معًا.'),
+Q('p',2,'جسم يبعد أكثر من 2f عن عدسة محدبة؛ صورته:','حقيقية مقلوبة مصغرة',['خيالية معتدلة مكبرة','حقيقية معتدلة','خيالية مصغرة'],'قاعدة الصور في العدسة المحدبة.'),
+Q('p',2,'الصورة في العدسة المقعرة دائمًا:','خيالية معتدلة مصغرة',['حقيقية مقلوبة','حقيقية مكبرة','خيالية مكبرة'],'العدسة المقعرة مفرِّقة.'),
+Q('p',3,'الزاوية الحرجة للماء إلى الهواء:','48.8°',['41.1°','90°','24.4°'],'sin θc = 1/1.33.')
+];
+PRE.forEach((q,i)=>q.id='p'+i);
+const SIDS=SK.map(s=>s.id);
+const skill=id=>SK.find(s=>s.id===id);
+
+/* ================== الحالة والطالب ================== */
+function newStudent(name){const sk={};SIDS.forEach(i=>sk[i]={best:0,done:false});return{name,level:null,pre:null,points:0,skills:sk,got:{},kwl:{},post:{best:0},tah:{best:0},badges:[],t:Date.now()}}
+function doneCount(){return SIDS.filter(i=>S().skills[i].done).length}
+function unlocked(i){return i===0||S().level!=='مبتدئ'||S().skills[SIDS[i-1]].done}
+function go(n,p){clearInterval(timer);timer=null;view=Object.assign({name:n},p||{});render();window.scrollTo(0,0)}
+function tab(t){clearInterval(timer);timer=null;view.tab=t;render()}
+
+/* ================== الواجهات ================== */
+function header(){
+ const st=DB.current?S():null;
+ return `<header class="bg-gradient-to-l from-blue-800 via-blue-700 to-emerald-600 text-white shadow-lg">
+ <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+  <svg width="46" height="46" viewBox="0 0 64 64" class="shrink-0"><circle cx="32" cy="32" r="30" fill="#fff"/><path d="M32 8 Q48 32 32 56 Q16 32 32 8Z" fill="#1d4ed8"/><path d="M4 32h56" stroke="#059669" stroke-width="3"/><circle cx="32" cy="32" r="4" fill="#fff"/></svg>
+  <div class="flex-1 min-w-[200px]"><div class="font-extrabold text-lg leading-tight">مدارس الأنجال الأهلية بالأحساء</div><div class="text-sm opacity-90">منصة الانكسار والعدسات — الفصل الخامس | إشراف: أ. محمد عمران</div></div>
+  ${st?`<div class="flex items-center gap-2 text-sm"><button onclick="go('home')" class="bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1.5 font-bold">🏠 الرئيسية</button><span class="bg-white/20 rounded-lg px-3 py-1.5 font-bold">⭐ ${st.points}</span></div>`:''}
+ </div></header>`}
+
+function render(){
+ clearInterval(timer);timer=null;
+ const v=view.name;let h='';
+ if(v==='login')h=loginV();else if(v==='home')h=homeV();else if(v==='skill')h=skillV();else if(v==='quiz')h=quizV();else if(v==='result')h=resultV();else if(v==='board')h=boardV();else if(v==='kwl')h=kwlV();
+ $('#app').innerHTML=header()+'<main class="max-w-6xl mx-auto p-4">'+h+'</main><footer class="text-center text-slate-500 text-sm py-6">تُحفظ بيانات الطالب على هذا الجهاز فقط • مدارس الأنجال الأهلية بالأحساء</footer>';
+ after();
+}
+
+function loginV(){return `<div class="max-w-lg mx-auto mt-8 card p-6 text-center">
+ <div class="text-5xl mb-2">🔬</div><h1 class="text-2xl font-extrabold text-blue-800">أهلًا بك في منصة الانكسار والعدسات</h1>
+ <p class="text-slate-600 mt-2">سجّل اسمك الثلاثي لبدء رحلتك التعلمية. سيبدأ المسار باختبار تشخيصي قصير يحدد مستواك.</p>
+ <input id="nm" class="w-full border-2 border-slate-300 rounded-xl p-3 mt-4 text-center text-lg focus:border-blue-600 outline-none" placeholder="الاسم الثلاثي (مثال: أحمد محمد علي)" onkeydown="if(event.key==='Enter')login()">
+ <div id="err" class="text-red-600 mt-2 h-5 text-sm"></div>
+ <button class="btn btn-p mt-3 w-full text-lg" onclick="login()">ابدأ الجلسة التعلمية ▶</button></div>`}
+function login(){
+ const n=$('#nm').value.trim().replace(/\s+/g,' ');
+ const parts=n.split(' ').filter(x=>x.length>=2);
+ if(parts.length<3){$('#err').textContent='يرجى كتابة الاسم الثلاثي كاملًا.';return}
+ if(!DB.students[n])DB.students[n]=newStudent(n);
+ DB.current=n;save();
+ go('home');
+}
+function pre(){startQuiz({mode:'pre',title:'الاختبار التشخيصي المبدئي',items:PRE})}
+function renderPreIntro(){}
+
+function homeV(){
+ const st=S();
+ if(!st.level)return `<div class="card p-6 max-w-xl mx-auto mt-6 text-center"><div class="text-5xl">🧭</div><h2 class="text-xl font-extrabold mt-2">مرحبًا ${esc(st.name)}</h2><p class="mt-2 text-slate-600">قبل البدء، أجب عن 8 أسئلة تشخيصية قصيرة ليحدد النظام مسارك التعلمي (مبتدئ / متوسط / متقدم).</p><button class="btn btn-p mt-4" onclick="pre()">ابدأ الاختبار التشخيصي</button></div>`;
+ const pc=Math.round(doneCount()/SIDS.length*100);
+ const lv=st.level, col=lv==='مبتدئ'?'bg-amber-100 text-amber-800':lv==='متوسط'?'bg-sky-100 text-sky-800':'bg-emerald-100 text-emerald-800';
+ const msg={'مبتدئ':'مسارك: تعلّم المهارات بالترتيب (تُفتح كل مهارة بعد إتقان السابقة بنسبة 70%). أسئلة التدريب تبدأ من الأسهل.','متوسط':'مسارك: جميع المهارات متاحة. ركّز على المهارات التي لم تتقنها بعد ثم جرّب أسئلة التحصيلي.','متقدم':'مسارك: تخطَّ مباشرة إلى المهارات التي تحتاجها، وأسئلة التدريب تبدأ من الأصعب. جرّب التحصيلي ثم الاختبار الختامي.'}[lv];
+ const canPost=lv==='متقدم'||doneCount()>=3;
+ return `<div class="card p-5 mb-4"><div class="flex flex-wrap items-center gap-3"><div class="flex-1"><h2 class="text-xl font-extrabold">مرحبًا ${esc(st.name)} 👋</h2><span class="inline-block ${col} rounded-full px-3 py-0.5 font-bold mt-1">المستوى: ${lv}</span> <span class="text-slate-500 text-sm">(نتيجة التشخيصي ${st.pre}/8)</span></div>
+ <div class="text-center"><div class="text-3xl font-extrabold text-emerald-600">${st.points}</div><div class="text-sm text-slate-500">نقطة</div></div></div>
+ <div class="mt-3"><div class="flex justify-between text-sm font-bold"><span>تقدم المهارات</span><span>${doneCount()}/${SIDS.length}</span></div><div class="h-3 bg-slate-200 rounded-full overflow-hidden"><div class="h-3 bg-gradient-to-l from-emerald-500 to-blue-600" style="width:${pc}%"></div></div></div>
+ <p class="mt-3 text-slate-700 bg-blue-50 rounded-lg p-3">🧭 ${msg}</p>
+ ${st.badges.length?`<div class="mt-3 flex flex-wrap gap-2">${st.badges.map(b=>`<span class="bg-yellow-100 text-yellow-800 rounded-full px-3 py-1 text-sm font-bold">🏅 ${esc(b)}</span>`).join('')}</div>`:''}</div>
+ <h3 class="font-extrabold text-lg mb-2">المهارات</h3>
+ <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">${SK.map((s,i)=>{const p=st.skills[s.id],un=unlocked(i);return `<div class="card p-4 ${un?'':'opacity-60'}"><div class="text-3xl">${s.ic}</div><div class="font-extrabold mt-1">${i+1}. ${s.title}</div><div class="text-sm text-slate-500 mt-1">أفضل نتيجة تدريب: ${p.best}% ${p.done?'✅':''}</div><div class="h-2 bg-slate-200 rounded-full mt-2"><div class="h-2 rounded-full bg-emerald-500" style="width:${p.best}%"></div></div>${un?`<button class="btn btn-p mt-3 w-full" onclick="go('skill',{id:'${s.id}',tab:'learn'})">${p.best?'متابعة':'ابدأ التعلم'}</button>`:`<button class="btn mt-3 w-full bg-slate-300 text-slate-600" disabled>🔒 أكمل المهارة السابقة</button>`}</div>`}).join('')}</div>
+ <div class="grid md:grid-cols-4 gap-3 mt-5">
+  <button class="card p-4 text-center hover:shadow-lg" onclick="startTah()"><div class="text-3xl">🎯</div><div class="font-bold mt-1">أسئلة التحصيلي</div><div class="text-xs text-slate-500">أفضل: ${st.tah.best}%</div></button>
+  <button class="card p-4 text-center ${canPost?'hover:shadow-lg':'opacity-60'}" onclick="${canPost?'startPost()':`toast('أتمّ 3 مهارات على الأقل أولًا')`}"><div class="text-3xl">📝</div><div class="font-bold mt-1">الاختبار الختامي</div><div class="text-xs text-slate-500">أفضل: ${st.post.best}%</div></button>
+  <button class="card p-4 text-center hover:shadow-lg" onclick="go('kwl')"><div class="text-3xl">🗒️</div><div class="font-bold mt-1">جدول التعلم الذاتي KWL</div></button>
+  <button class="card p-4 text-center hover:shadow-lg" onclick="go('board')"><div class="text-3xl">🏆</div><div class="font-bold mt-1">لوحة الشرف</div></button></div>
+ <div class="text-center mt-6 text-sm"><button class="text-slate-500 underline" onclick="logout()">تسجيل الخروج</button> • <button class="text-red-500 underline" onclick="wipe()">مسح بياناتي</button></div>`}
+function logout(){DB.current=null;save();go('login')}
+function wipe(){if(confirm('سيتم حذف تقدمك ونقاطك نهائيًا. متأكد؟')){delete DB.students[DB.current];DB.current=null;save();go('login')}}
+
+function skillV(){
+ const s=skill(view.id),t=view.tab||'learn';
+ const tabs=[['learn','📖 الأهداف والشرح'],['video','🎬 فيديو'],['anim','✨ رسوم تفاعلية'],['lab','🧪 تجربة افتراضية'],['map','🗺️ خريطة مفاهيم'],['kwl','🗒️ KWL'],['practice','✏️ تدريب']];
+ let c='';
+ if(t==='learn')c=`<h3 class="font-extrabold text-lg mb-2">🎯 أهداف التعلم</h3><ul class="list-disc pr-6 mb-4 space-y-1">${s.goals.map(g=>`<li>${g}</li>`).join('')}</ul>${s.body}`;
+ if(t==='video')c=`<h3 class="font-extrabold text-lg mb-3">فيديوهات تعليمية مقترحة</h3><div class="space-y-2">${s.videos.map(v=>`<a target="_blank" rel="noopener" href="${v[1]}" class="block border-2 border-slate-200 hover:border-blue-500 rounded-xl p-3"><span class="text-2xl">▶️</span> <b>${v[0]}</b><div class="text-xs text-slate-500 mt-1">يفتح نتائج يوتيوب المتخصصة في الموضوع</div></a>`).join('')}</div><p class="text-sm text-slate-500 mt-3">يمكن للمعلم استبدال هذه الروابط بروابط مقاطع محددة من قسم VIDEOS في الكود.</p>`;
+ if(t==='anim')c=animHTML(s.anim);
+ if(t==='lab')c=`<h3 class="font-extrabold text-lg mb-2">🧪 المحاكاة العالمية: ${s.phet.name}</h3><ol class="list-decimal pr-6 mb-3 space-y-1">${s.lab.map(x=>`<li>${x}</li>`).join('')}</ol><iframe src="${s.phet.embed}" class="w-full rounded-xl border" style="height:520px" allowfullscreen loading="lazy"></iframe><a target="_blank" rel="noopener" class="btn btn-o mt-3" href="${s.phet.page}">فتح المحاكاة في صفحة جديدة (PhET)</a>`;
+ if(t==='map')c=mapHTML(s.map);
+ if(t==='kwl')c=kwlBox(s.id);
+ if(t==='practice'){const p=S().skills[s.id];c=`<div class="text-center py-4"><div class="text-5xl">✏️</div><h3 class="font-extrabold text-lg mt-2">بنك أسئلة المهارة</h3><p class="text-slate-600 mt-1">${B[s.id].length} سؤالًا مع تغذية راجعة فورية وشرح لكل إجابة.<br>اجتز ${70}% لإتقان المهارة (+50 نقطة)، ولكل إجابة صحيحة جديدة +10 نقاط.</p><p class="mt-2 font-bold">أفضل نتيجة: ${p.best}% ${p.done?'✅ متقنة':''}</p><button class="btn btn-p mt-3" onclick="startSkill('${s.id}')">ابدأ التدريب</button></div>`}
+ return `<div class="card p-4"><div class="flex items-center gap-2 mb-3"><button class="btn btn-o !py-1" onclick="go('home')">→ رجوع</button><h2 class="text-xl font-extrabold">${s.ic} ${s.title}</h2></div>
+ <div class="flex gap-2 overflow-x-auto pb-2 mb-3">${tabs.map(x=>`<button class="tabb ${x[0]===t?'on':''}" onclick="tab('${x[0]}')">${x[1]}</button>`).join('')}</div><div>${c}</div></div>`}
+
+function mapHTML(m){return `<div class="text-center"><span class="inline-block bg-gradient-to-l from-blue-700 to-emerald-600 text-white rounded-full px-8 py-3 font-extrabold text-xl shadow">${m.c}</span><div class="w-0.5 h-6 bg-slate-300 mx-auto"></div></div>
+ <div class="grid md:grid-cols-3 gap-3">${m.b.map((b,i)=>`<div class="rounded-xl border-2 p-3 ${['border-blue-400 bg-blue-50','border-emerald-400 bg-emerald-50'][i%2]}"><div class="font-extrabold mb-2">${b[0]}</div><div class="flex flex-wrap gap-1.5">${b[1].map(x=>`<span class="bg-white rounded-full border px-2 py-0.5 text-sm kbd">${x}</span>`).join('')}</div></div>`).join('')}</div>`}
+function kwlBox(id){const k=S().kwl[id]||{};const f=(key,lab,ph)=>`<div><label class="font-bold block mb-1">${lab}</label><textarea oninput="setK('${id}','${key}',this.value)" placeholder="${ph}">${esc(k[key]||'')}</textarea></div>`;
+ return `<div class="grid md:grid-cols-3 gap-3">${f('k','ماذا أعرف؟','اكتب ما تعرفه قبل الدرس...')}${f('w','ماذا أريد أن أعرف؟','ما الأسئلة التي تريد إجابتها؟')}${f('l','ماذا تعلمت؟','لخّص ما تعلمته بعد الدرس...')}</div><p class="text-sm text-slate-500 mt-2">يُحفظ ما تكتبه تلقائيًا.</p>`}
+function setK(id,key,val){const st=S();st.kwl[id]=st.kwl[id]||{};if(!st.kwl[id][key]&&val.trim()&&!st.kwl[id]['p'+key]){st.kwl[id]['p'+key]=1;st.points+=5}st.kwl[id][key]=val;save()}
+function kwlV(){return `<div class="card p-4"><div class="flex items-center gap-2 mb-3"><button class="btn btn-o !py-1" onclick="go('home')">→ رجوع</button><h2 class="text-xl font-extrabold">🗒️ جدول التعلم الذاتي (KWL)</h2></div>${SK.map(s=>`<div class="mb-5"><h3 class="font-bold text-blue-800 mb-2">${s.ic} ${s.title}</h3>${kwlBox(s.id)}</div>`).join('')}</div>`}
+function boardV(){const arr=Object.values(DB.students).sort((a,b)=>b.points-a.points).slice(0,10);const md=['🥇','🥈','🥉'];
+ return `<div class="card p-4"><div class="flex items-center gap-2 mb-3"><button class="btn btn-o !py-1" onclick="go('home')">→ رجوع</button><h2 class="text-xl font-extrabold">🏆 لوحة الشرف</h2></div>
+ <table class="t"><tr><th>#</th><th>الطالب</th><th>المستوى</th><th>مهارات متقنة</th><th>النقاط</th></tr>${arr.map((s,i)=>`<tr class="${s.name===DB.current?'bg-emerald-50 font-bold':''}"><td>${md[i]||i+1}</td><td>${esc(s.name)}</td><td>${s.level||'-'}</td><td>${SIDS.filter(x=>s.skills[x].done).length}/5</td><td>${s.points}</td></tr>`).join('')}</table>
+ <p class="text-sm text-slate-500 mt-2">اللوحة تعرض الطلاب الذين سجّلوا الدخول على هذا الجهاز/المتصفح.</p></div>`}
+
+/* ================== محرك الاختبارات ================== */
+function startQuiz(cfg){
+ quiz=Object.assign({i:0,score:0,wrong:[],sel:null},cfg);
+ quiz.items=cfg.items.map(q=>Object.assign({},q,{ord:shuffle(q.o.map((_,i)=>i))}));
+ go('quiz');
+}
+function startSkill(id){
+ let it=B[id].slice();const lv=S().level;
+ it=lv==='مبتدئ'?it.sort((a,b)=>a.d-b.d):lv==='متقدم'?it.sort((a,b)=>b.d-a.d):shuffle(it);
+ startQuiz({mode:'skill',sid:id,title:'تدريب: '+skill(id).title,items:it});
+}
+function startTah(){startQuiz({mode:'tahsili',title:'أسئلة التحصيلي مع الإجابات النموذجية',items:shuffle(B.t)})}
+function startPost(){
+ let it=[];SIDS.forEach(i=>it=it.concat(shuffle(B[i]).slice(0,3)));it=it.concat(shuffle(B.t).slice(0,5));
+ startQuiz({mode:'post',title:'اختبار التقويم الختامي',items:shuffle(it)});
+}
+function quizV(){
+ const q=quiz.items[quiz.i],n=quiz.items.length,sel=quiz.sel;
+ const tag=q.d===1?'سهل':q.d===2?'متوسط':'صعب';
+ const opts=q.ord.map((oi,p)=>{let cl='opt';if(sel!==null){if(oi===0)cl+=' ok';else if(p===sel)cl+=' bad'}return `<button class="${cl}" ${sel!==null?'disabled':''} onclick="pick(${p})">${'أبجد'[p]}. ${q.o[oi]}</button>`}).join('');
+ let fb='';
+ if(sel!==null){const ok=q.ord[sel]===0;fb=`<div class="mt-4 rounded-xl p-4 ${ok?'bg-emerald-50 border-2 border-emerald-400':'bg-red-50 border-2 border-red-300'}"><div class="font-extrabold text-lg">${ok?'✅ إجابة صحيحة، أحسنت!':'❌ إجابة غير صحيحة'}</div>${ok?'':`<div class="mt-1">الإجابة الصحيحة: <b>${q.o[0]}</b></div>`}<div class="mt-2">💡 <b>التفسير:</b> ${q.e}</div></div><button class="btn btn-p mt-4" onclick="nextQ()">${quiz.i+1<n?'السؤال التالي ◀':'عرض النتيجة 🏁'}</button>`}
+ return `<div class="max-w-3xl mx-auto card p-5"><div class="flex items-center justify-between mb-2"><h2 class="font-extrabold text-blue-800">${quiz.title}</h2><span class="text-sm text-slate-500">${quiz.i+1} / ${n}${quiz.mode!=='pre'?` • ${tag}`:''}</span></div>
+ <div class="h-2 bg-slate-200 rounded-full mb-4"><div class="h-2 bg-gradient-to-l from-emerald-500 to-blue-600 rounded-full" style="width:${(quiz.i+(sel!==null?1:0))/n*100}%"></div></div>
+ <p class="text-lg font-bold mb-4 leading-relaxed">${q.q}</p><div class="space-y-2">${opts}</div>${fb}</div>`}
+function pick(p){
+ if(quiz.sel!==null)return;const q=quiz.items[quiz.i];quiz.sel=p;
+ if(q.ord[p]===0){quiz.score++;if(quiz.mode==='skill'||quiz.mode==='tahsili'){const st=S();if(!st.got[q.id]){st.got[q.id]=1;addPts(10)}}}else quiz.wrong.push(q);
+ save();render();
+}
+function nextQ(){quiz.sel=null;if(quiz.i+1<quiz.items.length){quiz.i++;render();window.scrollTo(0,0)}else finishQuiz()}
+function finishQuiz(){
+ const st=S(),n=quiz.items.length,pc=Math.round(quiz.score/n*100);let extra='';
+ if(quiz.mode==='pre'){st.pre=quiz.score;st.level=quiz.score<=3?'مبتدئ':quiz.score<=6?'متوسط':'متقدم';extra='تم تحديد مستواك: '+st.level}
+ else if(quiz.mode==='skill'){const p=st.skills[quiz.sid];p.best=Math.max(p.best,pc);if(pc>=70&&!p.done){p.done=true;st.points+=50;extra='🎉 أتقنت المهارة! +50 نقطة';if(doneCount()===5&&!st.badges.includes('متقن المهارات الخمس'))st.badges.push('متقن المهارات الخمس')}}
+ else if(quiz.mode==='tahsili'){if(pc>st.tah.best){if(pc>=80&&st.tah.best<80){st.points+=40;extra='🎯 +40 نقطة لتفوقك في التحصيلي'}st.tah.best=pc}}
+ else if(quiz.mode==='post'){if(pc>=80&&st.post.best<80){st.points+=100;extra='🏅 +100 نقطة لاجتياز الاختبار الختامي';st.badges.push(pc>=90?'نجم الانكسار والعدسات':'متفوق في الاختبار الختامي')}st.post.best=Math.max(st.post.best,pc)}
+ save();
+ view={name:'result',pc,score:quiz.score,n,wrong:quiz.wrong,mode:quiz.mode,sid:quiz.sid,extra,title:quiz.title};render();window.scrollTo(0,0);
+}
+function resultV(){
+ const r=view,msg=r.pc>=90?'ممتاز! إتقان رائع 🌟':r.pc>=70?'جيد جدًا، تابع التقدم 👏':r.pc>=50?'مقبول، راجع الشرح وأعد المحاولة 💪':'تحتاج إلى مراجعة الشرح ثم إعادة المحاولة 📖';
+ const again=r.mode==='pre'?"go('home')":r.mode==='skill'?`startSkill('${r.sid}')`:r.mode==='tahsili'?'startTah()':'startPost()';
+ return `<div class="max-w-3xl mx-auto card p-5 text-center"><h2 class="font-extrabold text-xl text-blue-800">${r.title}</h2>
+ <div class="text-6xl font-extrabold my-3 ${r.pc>=70?'text-emerald-600':'text-amber-600'}">${r.pc}%</div><div class="font-bold">${r.score} من ${r.n}</div><p class="mt-1">${msg}</p>${r.extra?`<p class="mt-2 bg-yellow-50 rounded-lg p-2 font-bold">${r.extra}</p>`:''}
+ <div class="flex flex-wrap gap-2 justify-center mt-4"><button class="btn btn-p" onclick="go('home')">🏠 الرئيسية</button>${r.mode!=='pre'?`<button class="btn btn-o" onclick="${again}">🔁 إعادة المحاولة</button>`:''}</div></div>
+ ${r.wrong.length?`<div class="max-w-3xl mx-auto mt-4"><h3 class="font-extrabold mb-2">مراجعة الأسئلة التي أخطأت فيها (${r.wrong.length})</h3>${r.wrong.map(q=>`<div class="card p-4 mb-3"><p class="font-bold">${q.q}</p><p class="mt-1 text-emerald-700">✔ الصحيح: <b>${q.o[0]}</b></p><p class="mt-1 text-slate-700">💡 ${q.e}</p></div>`).join('')}</div>`:''}`}
+
+/* ================== الرسوم التفاعلية ================== */
+function animHTML(k){
+ if(k==='snell'){const o=MEDIA.map(m=>`<option value="${m[1]}">${m[0]} (${m[1]})</option>`).join('');
+ return `<h3 class="font-extrabold text-lg mb-2">محاكي الانكسار وقانون سنل</h3><div class="grid lg:grid-cols-2 gap-4"><svg id="sSvg" viewBox="0 0 400 300" class="w-full rounded-xl border bg-white"></svg>
+ <div class="space-y-3"><div><label class="font-bold">الوسط الأول (أعلى)</label><select id="sn1" class="w-full border-2 rounded-lg p-2" onchange="drawSnell()">${o}</select></div>
+ <div><label class="font-bold">الوسط الثاني (أسفل)</label><select id="sn2" class="w-full border-2 rounded-lg p-2" onchange="drawSnell()">${o}</select></div>
+ <div><label class="font-bold">زاوية السقوط: <span id="sthv" class="kbd"></span></label><input id="sth" type="range" min="0" max="89" value="30" oninput="drawSnell()"></div>
+ <button class="btn btn-o" onclick="sweep('sth',0,89,1,drawSnell)">▶ تشغيل / إيقاف التحريك التلقائي</button><div id="sOut" class="ex text-sm leading-7"></div></div></div>`}
+ if(k==='lens-cx'||k==='lens-cv'){return `<h3 class="font-extrabold text-lg mb-2">محاكي تكوين الصور بالعدسات</h3><div class="grid lg:grid-cols-3 gap-4"><div class="lg:col-span-2"><svg id="lSvg" viewBox="0 0 600 260" class="w-full rounded-xl border bg-white"></svg></div>
+ <div class="space-y-3"><div><label class="font-bold">نوع العدسة</label><select id="lType" class="w-full border-2 rounded-lg p-2" onchange="drawLens()"><option value="cx" ${k==='lens-cx'?'selected':''}>محدبة (f موجبة)</option><option value="cv" ${k==='lens-cv'?'selected':''}>مقعرة (f سالبة)</option></select></div>
+ <div><label class="font-bold">البعد البؤري |f|: <span id="lFv" class="kbd"></span> cm</label><input id="lF" type="range" min="5" max="20" value="10" oninput="drawLens()"></div>
+ <div><label class="font-bold">بعد الجسم d₀: <span id="lDv" class="kbd"></span> cm</label><input id="lD" type="range" min="4" max="45" step="0.5" value="30" oninput="drawLens()"></div>
+ <button class="btn btn-o" onclick="sweep('lD',4,45,0.5,drawLens)">▶ تحريك الجسم تلقائيًا</button><div id="lOut" class="ex text-sm leading-7"></div></div></div>`}
+ if(k==='eye'){return `<h3 class="font-extrabold text-lg mb-2">محاكي العين وعيوب النظر</h3><div class="grid lg:grid-cols-2 gap-4"><svg id="eSvg" viewBox="0 0 450 200" class="w-full rounded-xl border bg-white"></svg><div class="space-y-3">
+ <div><label class="font-bold">حالة العين</label><select id="eCond" class="w-full border-2 rounded-lg p-2" onchange="drawEye()"><option value="n">عين سليمة</option><option value="m" selected>قصر النظر</option><option value="h">طول النظر</option></select></div>
+ <label class="flex items-center gap-2 font-bold"><input id="eCorr" type="checkbox" onchange="drawEye()" class="w-5 h-5"> إضافة عدسة تصحيحية</label><div id="eOut" class="ex text-sm leading-7"></div></div></div>`}
+ return ''}
+function sweep(id,a,b,step,fn){if(timer){clearInterval(timer);timer=null;return}let dir=1;timer=setInterval(()=>{const el=$('#'+id);if(!el){clearInterval(timer);timer=null;return}let v=+el.value+dir*step;if(v>=b){v=b;dir=-1}if(v<=a){v=a;dir=1}el.value=v;fn()},45)}
+function after(){if(view.name==='skill'&&view.tab==='anim'){const a=skill(view.id).anim;if(a==='snell'){$('#sn1').selectedIndex=1;$('#sn2').selectedIndex=view.id==='s2'?1:4;if(view.id==='s2'){$('#sn1').selectedIndex=2}drawSnell()}else if(a==='eye')drawEye();else drawLens()}}
+const rad=Math.PI/180,deg=180/Math.PI;
+function drawSnell(){
+ const svg=$('#sSvg');if(!svg)return;const n1=+$('#sn1').value,n2=+$('#sn2').value,t1=+$('#sth').value;$('#sthv').textContent=t1+'°';
+ const s=n1*Math.sin(t1*rad)/n2,tir=s>1,t2=tir?null:Math.asin(s)*deg,cx=200,cy=150,L=125;
+ const sh=(n)=>Math.min(.55,(n-1)/2.6*.55+.12);
+ let h=`<rect x="0" y="0" width="400" height="150" fill="#0ea5e9" opacity="${sh(n1)}"/><rect x="0" y="150" width="400" height="150" fill="#10b981" opacity="${sh(n2)}"/><line x1="0" y1="150" x2="400" y2="150" stroke="#475569" stroke-width="2"/><line x1="200" y1="10" x2="200" y2="290" stroke="#64748b" stroke-dasharray="5 4"/>
+ <text x="8" y="20" font-size="13" fill="#0f172a">n₁ = ${n1}</text><text x="8" y="290" font-size="13" fill="#0f172a">n₂ = ${n2}</text>
+ <line x1="${cx-L*Math.sin(t1*rad)}" y1="${cy-L*Math.cos(t1*rad)}" x2="${cx}" y2="${cy}" stroke="#dc2626" stroke-width="3"/>
+ <line x1="${cx}" y1="${cy}" x2="${cx+L*Math.sin(t1*rad)}" y2="${cy-L*Math.cos(t1*rad)}" stroke="#dc2626" stroke-width="${tir?3:1.5}" stroke-dasharray="${tir?'':'4 4'}" opacity="${tir?1:.5}"/>`;
+ if(!tir)h+=`<line x1="${cx}" y1="${cy}" x2="${cx+L*Math.sin(t2*rad)}" y2="${cy+L*Math.cos(t2*rad)}" stroke="#7c3aed" stroke-width="3"/><text x="${cx+8}" y="${cy+40}" font-size="13" fill="#5b21b6">θ₂=${t2.toFixed(1)}°</text>`;
+ h+=`<text x="${cx-70}" y="${cy-40}" font-size="13" fill="#b91c1c">θ₁=${t1}°</text>`;svg.innerHTML=h;
+ const c=3e8,tc=n1>n2?Math.asin(n2/n1)*deg:null;
+ $('#sOut').innerHTML=`<div>${tir?'<b class="text-red-600">انعكاس كلي داخلي: لا توجد حزمة منكسرة</b>':`<b>زاوية الانكسار θ₂ = ${t2.toFixed(1)}°</b> (${t2<t1?'اقترب من العمود':t2>t1?'ابتعد عن العمود':'لا انحراف'})`}</div><div>سرعة الضوء: v₁ = ${(c/n1/1e8).toFixed(2)}×10⁸ ، v₂ = ${(c/n2/1e8).toFixed(2)}×10⁸ m/s</div><div>λ₂/λ₁ = n₁/n₂ = ${(n1/n2).toFixed(2)} (التردد ثابت)</div>${tc?`<div>الزاوية الحرجة = ${tc.toFixed(1)}°</div>`:'<div>n₂ ≥ n₁: لا توجد زاوية حرجة.</div>'}`;
+}
+function drawLens(){
+ const svg=$('#lSvg');if(!svg)return;const type=$('#lType').value,f0=+$('#lF').value,d=+$('#lD').value;$('#lFv').textContent=f0;$('#lDv').textContent=d;
+ const f=type==='cx'?f0:-f0,sc=6,ax=130,lx=300,ho=4;
+ const di=Math.abs(d-f)<1e-9?null:f*d/(d-f);
+ const ox=lx-d*sc,oy=ax-ho*sc;
+ let h=`<line x1="0" y1="${ax}" x2="600" y2="${ax}" stroke="#94a3b8"/>`;
+ h+=type==='cx'?`<path d="M300 30 Q335 130 300 230 Q265 130 300 30Z" fill="#93c5fd" stroke="#1d4ed8" stroke-width="2" opacity=".8"/>`:`<path d="M284 30 Q300 130 284 230 L316 230 Q300 130 316 30Z" fill="#a7f3d0" stroke="#059669" stroke-width="2" opacity=".85"/>`;
+ [[-1,'F'],[1,'F'],[-2,'2F'],[2,'2F']].forEach(a=>{const x=lx+a[0]*f0*sc;if(x>5&&x<595)h+=`<circle cx="${x}" cy="${ax}" r="3" fill="#0f172a"/><text x="${x-7}" y="${ax+16}" font-size="11">${a[1]}</text>`});
+ h+=`<line x1="${ox}" y1="${ax}" x2="${ox}" y2="${oy}" stroke="#1d4ed8" stroke-width="4"/><polygon points="${ox-5},${oy+7} ${ox+5},${oy+7} ${ox},${oy-3}" fill="#1d4ed8"/>`;
+ let desc;
+ if(di===null){h+=`<line x1="${ox}" y1="${oy}" x2="${lx}" y2="${oy}" stroke="#dc2626" stroke-width="2"/><line x1="${lx}" y1="${oy}" x2="595" y2="${oy+0}" stroke="#dc2626" stroke-width="2"/><line x1="${lx}" y1="${ax}" x2="${ox}" y2="${oy}" stroke="#16a34a" stroke-width="2"/>`;desc='الجسم عند البؤرة: لا تتكون صورة (الأشعة المنكسرة متوازية).';$('#lOut').innerHTML=`<b>${desc}</b>`;svg.innerHTML=h;return}
+ const m=-di/d,hi=m*ho,ix=lx+di*sc,iy=ax-hi*sc,real=di>0;
+ const vx=Math.abs(ix-lx),vy=real?(iy-oy):-(iy-oy);
+ const yEnd=oy+vy*(595-lx)/vx;
+ h+=`<line x1="${ox}" y1="${oy}" x2="${lx}" y2="${oy}" stroke="#dc2626" stroke-width="2"/><line x1="${lx}" y1="${oy}" x2="595" y2="${yEnd}" stroke="#dc2626" stroke-width="2"/>`;
+ if(!real)h+=`<line x1="${lx}" y1="${oy}" x2="${ix}" y2="${iy}" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+ const sl=(ax-oy)/(lx-ox);h+=`<line x1="${ox}" y1="${oy}" x2="595" y2="${ax+sl*(595-lx)}" stroke="#16a34a" stroke-width="2"/>`;
+ if(!real)h+=`<line x1="${lx}" y1="${ax}" x2="${ix}" y2="${iy}" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+ if(Math.abs(ix-lx)<1500){h+=`<line x1="${ix}" y1="${ax}" x2="${ix}" y2="${iy}" stroke="#7c3aed" stroke-width="4" ${real?'':'stroke-dasharray="5 4"'}/><circle cx="${ix}" cy="${iy}" r="5" fill="#7c3aed"/>`}
+ svg.innerHTML=h;
+ const sz=Math.abs(m)<0.995?'مصغرة':Math.abs(m)>1.005?'مكبرة':'مساوية للجسم';
+ $('#lOut').innerHTML=`<div>f = ${f>0?'+':'−'}${f0} cm</div><div>dᵢ = ${di.toFixed(1)} cm</div><div>m = ${m.toFixed(2)} ، hᵢ = ${hi.toFixed(1)} cm (h₀ = 4)</div><div><b>${real?'حقيقية':'خيالية'} — ${m>0?'معتدلة':'مقلوبة'} — ${sz}</b></div>`;
+}
+function drawEye(){
+ const svg=$('#eSvg');if(!svg)return;const c=$('#eCond').value,corr=$('#eCorr').checked&&c!=='n';
+ const lensX=150,ret=390,fe={n:240,m:185,h:310}[c];
+ let h=`<ellipse cx="270" cy="100" rx="150" ry="75" fill="#fef3c7" stroke="#b45309" stroke-width="2"/><path d="M390 40 Q410 100 390 160" fill="none" stroke="#dc2626" stroke-width="5"/><text x="395" y="30" font-size="12" fill="#b91c1c">الشبكية</text>
+ <ellipse cx="${lensX}" cy="100" rx="9" ry="42" fill="#93c5fd" stroke="#1d4ed8" stroke-width="2"/><text x="${lensX-18}" y="160" font-size="12">عدسة العين</text>`;
+ if(corr){h+=c==='m'?`<path d="M84 55 Q90 100 84 145 L96 145 Q90 100 96 55Z" fill="#a7f3d0" stroke="#059669" stroke-width="2"/>`:`<path d="M90 52 Q106 100 90 148 Q74 100 90 52Z" fill="#93c5fd" stroke="#1d4ed8" stroke-width="2"/>`}
+ let xf=corr?ret:lensX+fe;
+ [-34,0,34].forEach(r=>{const y0=100+r;let pts=[[15,y0]];
+  if(corr){const k=c==='m'?1.058:0.96;pts.push([90,y0],[lensX,100+r*k],[ret,100])}
+  else{pts.push([lensX,y0]);if(r===0)pts.push([ret,100]);else{const m=(100-y0)/(xf-lensX);const xe=Math.min(xf,ret);pts.push([xe,y0+m*(xe-lensX)]);if(xf<ret)pts.push([ret,y0+m*(ret-lensX)])}}
+  h+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#dc2626" stroke-width="2.2"/>`});
+ if(!corr&&xf<ret)h+=`<circle cx="${xf}" cy="100" r="4" fill="#7c3aed"/><text x="${xf-20}" y="92" font-size="11" fill="#5b21b6">البؤرة</text>`;
+ if(!corr&&xf>ret)h+=`<text x="330" y="190" font-size="11" fill="#5b21b6">ستتكون البؤرة خلف الشبكية ←</text>`;
+ svg.innerHTML=h;
+ let t=c==='n'?'عين سليمة: تتجمع أشعة الجسم البعيد على الشبكية بوضوح.':c==='m'?(corr?'تصحيح قصر النظر بعدسة <b>مقعرة</b> تفرّق الأشعة قليلًا فتتركز على الشبكية.':'<b>قصر النظر:</b> البعد البؤري للعين أقل فتتكون الصورة <u>أمام</u> الشبكية. العلاج: عدسة مقعرة.'):(corr?'تصحيح طول النظر بعدسة <b>محدبة</b> تزيد تقارب الأشعة فتتركز على الشبكية.':'<b>طول النظر:</b> البعد البؤري للعين أكبر فتتكون الصورة <u>خلف</u> الشبكية. العلاج: عدسة محدبة.');
+ $('#eOut').innerHTML=t;
+}
+render();
+</script>
+</body>
+</html>
